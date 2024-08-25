@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -46,7 +47,21 @@ func main() {
 			// Check the request path
 			var response http.Response
             if handler,ok := routes[request.URL.Path]; ok{
-				
+				function_call_res := handler()
+				response = http.Response{
+					StatusCode: 200,
+					ProtoMajor: 1,
+					ProtoMinor: 0,
+					Body: io.NopCloser(strings.NewReader(function_call_res)),
+				}
+			} else {
+				// Respond with 404 Not Found for other paths
+				response = http.Response{
+					StatusCode: 404,
+					ProtoMajor: 1,
+					ProtoMinor: 0,
+					Body: io.NopCloser(strings.NewReader("404 Not Found\n")),
+				}
 			}
 
 			// Write the response
@@ -57,4 +72,25 @@ func main() {
 			}
 		}()
 	}
+}
+
+
+func check_goroutine_mechanism () string{
+	events := make(chan int)
+
+	// goを外すとただの即時実行関数を同期的に実行しているだけになって停止する
+	go func(){
+		for i := 0;i<=5; i ++{
+			// goroutine内でないと、受信者がまだ作られていないためデットロックを引き起こす
+			events <- i
+			time.Sleep(1 * time.Second)
+		}
+			close(events)
+	}()
+
+	for event := range events {
+		fmt.Printf("Recieved event %d\n", event)
+	}
+
+	return "All events processed"
 }
